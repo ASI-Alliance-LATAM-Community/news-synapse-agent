@@ -15,6 +15,8 @@ from uagents import Agent, Context, Protocol
 
 import os
 from dotenv import load_dotenv
+from philosophical_framework import PhilosophicalFramework
+from cultural_bridge import CulturalBridgeBuilder, DialogueFacilitator
 
 load_dotenv()
 
@@ -25,6 +27,10 @@ ASI1_HEADERS = {
     "Content-Type": "application/json",
 }
 
+philosophical_framework = PhilosophicalFramework()
+cultural_bridge = CulturalBridgeBuilder()
+dialogue_facilitator = DialogueFacilitator()
+
 def _text_msg(text: str) -> ChatMessage:
     return ChatMessage(
         timestamp=datetime.now(timezone.utc),
@@ -34,18 +40,21 @@ def _text_msg(text: str) -> ChatMessage:
 
 async def process_query(query: str, ctx: Context):
     try:
-        user_message = {"role": "user", "content": query}
+        philosophical_analysis = cultural_bridge.generate_philosophical_inquiry(query)
+        
+        user_message = {"role": "user", "content": f"{query}\n\n--- PHILOSOPHICAL ANALYSIS ---\n{philosophical_analysis}"}
+        
+        system_content = philosophical_framework.get_critical_thinking_prompt()
+        
         system_message = {
             "role": "system",
-            "content": (
-                "Your name is AGI Hackathon Agent"
-            ),
+            "content": system_content,
         }
 
         payload = {
             "model": "asi1-mini",
             "messages": [system_message, user_message],
-            "temperature": 0.2,
+            "temperature": 0.7,
             "max_tokens": 4096,
         }
 

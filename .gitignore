@@ -99,3 +99,10 @@ agents_data/
 # Temporary files
 tmp/
 temp/
+
+# Project
+
+demo.py
+enhanced_demo.py
+quick_test.py
+test_cli.py
