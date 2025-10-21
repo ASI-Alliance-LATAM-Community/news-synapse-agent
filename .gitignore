@@ -100,9 +100,15 @@ agents_data/
 tmp/
 temp/
 
-# Project
+# Project tests
 
 demo.py
 enhanced_demo.py
 quick_test.py
 test_cli.py
+offensive_detection_demo.py
+enhanced_examples_demo.py
+check_payload_size.py
+simple_test.py
+test_asi1_tools.py
+test_news_search.py
