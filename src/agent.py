@@ -48,9 +48,8 @@ ASI1_HEADERS = {
     "Content-Type": "application/json",
 }
 
-MEDIACLOUD_API_KEY = os.getenv("MEDIACLOUD_API_KEY")
-MEDIACLOUD_COLLECTION_IDS = [34412234]
-news_bridge = NewsBridge(api_key=MEDIACLOUD_API_KEY) if MEDIACLOUD_API_KEY else None
+MEDIACLOUD_API_KEY = os.getenv("MEDIACLOUD_API_KEY", "")
+news_bridge = NewsBridge(api_key=MEDIACLOUD_API_KEY)
 
 philosophical_framework = PhilosophicalFramework()
 cultural_bridge = CulturalBridgeBuilder()
@@ -75,16 +74,12 @@ def format_error_response(error: Exception) -> str:
 async def call_news_tool(func_name: str, args: dict, ctx: Context):
     """Call news search tools using NewsBridge"""
     try:
-        if not news_bridge:
-            raise ValueError("MediaCloud API key not configured. Please set MEDIACLOUD_API_KEY in your environment.")
-        
         ctx.logger.debug(f"[CALL] Function={func_name!r}, Raw args={args!r}")
         
         if func_name == "search_news":
             query = args.get("query")
             days_back = args.get("days_back", 7)
             max_stories = min(args.get("max_stories", 5), 5)
-            collection_ids = args.get("collection_ids")
             
             max_retries = 3
             retry_delay = 2
@@ -141,7 +136,7 @@ async def process_query(query: str, ctx: Context) -> str:
             "tools": tools,
             "tool_choice": "auto",
             "temperature": 0.7,
-            "max_tokens": 4096,
+            "max_tokens": 8192,
         }
         
         ctx.logger.info(f"[DEBUG] Making API request with {len(tools)} tools")
@@ -225,7 +220,7 @@ async def process_query(query: str, ctx: Context) -> str:
                     "model": "asi1-mini",
                     "messages": [system_message, initial_message],
                     "temperature": 0.7,
-                    "max_tokens": 4096,
+                    "max_tokens": 8192,
                 }
                 fallback_resp = requests.post(
                     f"{ASI1_BASE_URL}/chat/completions",
@@ -254,47 +249,12 @@ async def process_query(query: str, ctx: Context) -> str:
             for i, tool_call in enumerate(tool_calls):
                 ctx.logger.info(f"[DEBUG] Tool call {i+1}: {tool_call['function']['name']}")
         
-        content = model_msg.get("content", "")
-        if any(marker in content for marker in ["tool▁calls▁begin", "tool_calls_begin", "｜tool▁call▁begin｜", "tool_call_begin", "<｜tool", "tool▁sep｜"]):
-            ctx.logger.error(f"[ERROR] Model returned raw tool syntax: {content}")
-            if any(keyword in query.lower() for keyword in ["search", "find", "news", "stories", "article", "media", "latest", "recent", "china", "usa", "latam"]):
-                ctx.logger.info("[FALLBACK] Manually triggering news search due to raw tool syntax")
-                try:
-                    search_query = query.lower().replace("please search news about", "").replace("search news about", "").replace("find stories about", "").replace("search", "").replace("news", "").replace("about", "").strip()
-                    if not search_query:
-                        search_query = query
-                    
-                    ctx.logger.info(f"[FALLBACK] Using search query: '{search_query}'")
-                    manual_result = await call_news_tool("search_news", {"query": search_query}, ctx)
-                    
-                    if manual_result:
-                        formatted_response = "I found these relevant news stories for you:\n\n"
-                        for i, story in enumerate(manual_result, 1):
-                            if isinstance(story, dict):
-                                title = story.get('title', 'No Title')
-                                url = story.get('url', 'No URL')
-                                publish_date = story.get('publish_date', 'Unknown date')
-                                media_name = story.get('media_name', 'Unknown source')
-                                
-                                formatted_response += f"**{i}. {title}**\n"
-                                formatted_response += f"- **Source:** {media_name}\n"
-                                formatted_response += f"- **Date:** {publish_date}\n"
-                                formatted_response += f"- **Link:** {url}\n\n"
-                        
-                        return formatted_response
-                    else:
-                        return "I searched for news but couldn't find relevant stories at this time. Please try again with different keywords."
-                except Exception as e:
-                    ctx.logger.error(f"[FALLBACK] Manual tool call failed: {e}")
-            
-            return "I apologize, but there was an issue with processing your request. Please try rephrasing your question or try again."
-
         if not tool_calls:
             natural_payload = {
                 "model": "asi1-mini",
                 "messages": [system_message, initial_message],
                 "temperature": 0.7,
-                "max_tokens": 4096,
+                "max_tokens": 8192,
             }
             
             natural_response = requests.post(
@@ -335,7 +295,7 @@ async def process_query(query: str, ctx: Context) -> str:
             "model": "asi1-mini",
             "messages": messages_history,
             "temperature": 0.7,
-            "max_tokens": 4096,
+            "max_tokens": 8192,
         }
         final_response = requests.post(
             f"{ASI1_BASE_URL}/chat/completions",
@@ -357,10 +317,7 @@ chat_proto = Protocol(spec=chat_protocol_spec)
 @agent.on_event("startup")
 async def _startup(ctx: Context):
     ctx.logger.info("🚀 Starting AGI Hackathon Agent - Cultural Bridge Builder")
-    if news_bridge:
-        ctx.logger.info("✅ NewsBridge initialized successfully")
-    else:
-        ctx.logger.warning("❌ NewsBridge not initialized - MEDIACLOUD_API_KEY missing")
+    ctx.logger.info("✅ NewsBridge initialized successfully with MediaCloud Search API")
 
 
 @chat_proto.on_message(model=ChatMessage)
