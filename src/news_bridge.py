@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 class NewsBridge:
     def __init__(self, api_key: str, collection_ids=None):
         self.api_key = api_key
-        self.collection_ids = collection_ids or []
         self.mc_search = mediacloud.api.SearchApi(self.api_key)
 
     def search_nuanced_news(self, query=None, days_back=7, max_stories=100):
@@ -32,7 +31,6 @@ class NewsBridge:
                 search_query,
                 start_date=start_date,
                 end_date=end_date,
-                collection_ids=self.collection_ids,
                 pagination_token=pagination_token
             )
             all_stories += page
@@ -62,7 +60,6 @@ class NewsBridge:
                 search_query,
                 start_date=start_date,
                 end_date=end_date,
-                collection_ids=self.collection_ids,
                 pagination_token=pagination_token
             )
             all_stories += page

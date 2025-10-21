@@ -11,7 +11,7 @@ TOOLS: List[Dict[str, Any]] = [
                 "properties": {
                     "query": {
                         "type": "string",
-                        "description": "Search query for news stories. Can be topics, locations, themes, regions, cultures, etc. The tool will automatically enhance this with bridge-building and nuance-promoting terms."
+                        "description": "Search query for news stories. Can be topics, locations, themes, regions, cultures, medicine, etc. The tool will automatically enhance this with bridge-building and nuance-promoting terms."
                     },
                     "days_back": {
                         "type": "integer",

@@ -1,5 +1,6 @@
 import json
 import requests
+import asyncio
 from uuid import uuid4
 from datetime import datetime, timezone, date
 
@@ -49,7 +50,7 @@ ASI1_HEADERS = {
 
 MEDIACLOUD_API_KEY = os.getenv("MEDIACLOUD_API_KEY")
 MEDIACLOUD_COLLECTION_IDS = [34412234]
-news_bridge = NewsBridge(api_key=MEDIACLOUD_API_KEY, collection_ids=MEDIACLOUD_COLLECTION_IDS) if MEDIACLOUD_API_KEY else None
+news_bridge = NewsBridge(api_key=MEDIACLOUD_API_KEY) if MEDIACLOUD_API_KEY else None
 
 philosophical_framework = PhilosophicalFramework()
 cultural_bridge = CulturalBridgeBuilder()
@@ -85,24 +86,33 @@ async def call_news_tool(func_name: str, args: dict, ctx: Context):
             max_stories = min(args.get("max_stories", 5), 5)
             collection_ids = args.get("collection_ids")
             
-            if collection_ids:
-                original_ids = news_bridge.collection_ids
-                news_bridge.collection_ids = collection_ids
+            max_retries = 3
+            retry_delay = 2
+            
+            for attempt in range(max_retries):
                 try:
                     result = news_bridge.search_nuanced_news(query, days_back, max_stories)
-                finally:
-                    news_bridge.collection_ids = original_ids
-            else:
-                result = news_bridge.search_nuanced_news(query, days_back, max_stories)
-                
-            result = result[:5]
-            
-            result = serialize_datetime_objects(result)
+                        
+                    result = result[:5]
+                    
+                    result = serialize_datetime_objects(result)
+                    
+                    json.dumps(result)
+                    
+                    ctx.logger.info(f"[RESULT] {func_name} returned {len(result)} stories")
+                    return result
+                    
+                except Exception as e:
+                    error_msg = str(e).lower()
+                    if ("429" in error_msg or "rate limit" in error_msg) and attempt < max_retries - 1:
+                        ctx.logger.warning(f"Rate limit hit, retrying in {retry_delay}s (attempt {attempt + 1}/{max_retries})")
+                        await asyncio.sleep(retry_delay)
+                        retry_delay *= 2 
+                        continue
+                    else:
+                        raise e
         else:
             raise ValueError(f"Unsupported function call: {func_name}")
-            
-        ctx.logger.info(f"[RESULT] {func_name} returned {len(result)} stories")
-        return result
 
     except Exception as e:
         ctx.logger.error(f"News tool call failed for {func_name}: {e}")
@@ -136,11 +146,46 @@ async def process_query(query: str, ctx: Context) -> str:
         
         ctx.logger.info(f"[DEBUG] Making API request with {len(tools)} tools")
 
-        resp = requests.post(
-            f"{ASI1_BASE_URL}/chat/completions",
-            headers=ASI1_HEADERS,
-            json=payload,
-        )
+        max_api_retries = 2
+        api_retry_delay = 1
+        resp = None
+        
+        for api_attempt in range(max_api_retries):
+            try:
+                resp = requests.post(
+                    f"{ASI1_BASE_URL}/chat/completions",
+                    headers=ASI1_HEADERS,
+                    json=payload,
+                    timeout=30
+                )
+                
+                if resp.status_code == 500:
+                    ctx.logger.warning(f"ASI1 API returned 500 error (attempt {api_attempt + 1}/{max_api_retries})")
+                    if api_attempt < max_api_retries - 1:
+                        await asyncio.sleep(api_retry_delay)
+                        api_retry_delay *= 2
+                        continue
+                    else:
+                        break
+                elif resp.status_code == 200:
+                    break
+                else:
+                    break
+                    
+            except requests.exceptions.Timeout:
+                ctx.logger.warning(f"ASI1 API request timed out (attempt {api_attempt + 1}/{max_api_retries})")
+                if api_attempt < max_api_retries - 1:
+                    await asyncio.sleep(api_retry_delay)
+                    continue
+                else:
+                    ctx.logger.error("[ERROR] ASI1 API request timed out after retries")
+                    return "I'm experiencing technical difficulties with the AI service (Request Timeout). Please try again in a moment."
+            except requests.exceptions.RequestException as e:
+                ctx.logger.error(f"[ERROR] ASI1 API request failed: {e}")
+                return f"I'm experiencing technical difficulties with the AI service ({str(e)}). Please try again in a moment."
+        
+        if resp is None:
+            return "I'm experiencing technical difficulties with the AI service. Please try again in a moment."
         
         if resp.status_code != 200:
             ctx.logger.error(f"[ERROR] ASI1 API error: {resp.status_code} - {resp.text}")
@@ -270,7 +315,7 @@ async def process_query(query: str, ctx: Context) -> str:
                 if func_name in NEWS_TOOL_NAMES:
                     ctx.logger.info(f"[CALL] Calling news tool: {func_name} with args: {arguments}")
                     result = await call_news_tool(func_name, arguments, ctx)
-                    ctx.logger.info(f"[RESULT] {func_name} result: {len(result)} stories found")
+                    ctx.logger.info(f"[RESULT] {func_name} result: {len(result) if isinstance(result, (list, dict)) else 'unknown'} stories found")
                 else:
                     raise ValueError(f"Unsupported tool: {func_name}")
 
