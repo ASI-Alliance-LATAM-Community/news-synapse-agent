@@ -1,9 +1,15 @@
-# News Synapse
+<div align="center">
+
+<img src="./docs/images/agent-image.jpg" alt="News Synapse" width="140">
+
+<p></p>
+
+<h1>News Synapse</h1>
+</div>
 
 Designed to build an expansive rather than retracting collective imagination, this agent aims to enrich public discourse by complexifying news and media while countering social polarization and binary thinking.
 
 The agent is designed to detect and amplify content and news that transcend ideological polarization, promoting nuanced thinking and exploring the gray areas, with the goal of bringing minds closer together rather than driving them apart. The agent curates cultural content that fosters complex, non-dual thought, challenges stereotypes, and builds bridges between cultures. It is trained with the works of high-level authors and philosophers who question simplistic paradigms and confront the status quo from hegemonic media, while being equipped to detect and filter hateful, racist, or misogynistic language.
-
 
 ## Philosophy & Purpose
 
