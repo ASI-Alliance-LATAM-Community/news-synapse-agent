@@ -5,6 +5,13 @@
 <p></p>
 
 <h1>News Synapse</h1>
+
+<h2>
+BGI Hackathon 2025
+</br></br>
+🥈 2nd Place in the Decentralized News & Media Integrity Track
+</h2>
+
 </div>
 
 Designed to build an expansive rather than retracting collective imagination, this agent aims to enrich public discourse by complexifying news and media while countering social polarization and binary thinking.
